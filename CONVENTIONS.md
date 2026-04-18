@@ -18,3 +18,7 @@
   - **Minor**: For new features (e.g., `1.x.0` -> `1.x+1.0`).
   - **Major**: For breaking changes or major releases (e.g., `x.0.0` -> `x+1.0.0`).
 - **Synchronize Versions**: Ensure the version in `package.json` and `app.json` always match.
+
+## Git Hygiene
+- **Check `.gitignore`**: Before creating any large files or downloading tools (like `.apk`, `.aab`, `.jar`), ensure they are covered by `.gitignore`.
+- **Verify `git status`**: ALWAYS check `git status` before committing to ensure no sensitive or unnecessary binaries are being staged for the repository.
