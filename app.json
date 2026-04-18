@@ -44,6 +44,18 @@
     "experiments": {
       "hostUri": "localhost",
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "headers": {
+          "Cross-Origin-Embedder-Policy": "require-corp",
+          "Cross-Origin-Opener-Policy": "same-origin"
+        }
+      },
+      "eas": {
+        "projectId": "ec9489fd-1cc8-496f-a1b5-6413937c54ab"
+      }
+    },
+    "owner": "sanjaylagariya"
   }
 }
