@@ -42,7 +42,6 @@
       "expo-sqlite"
     ],
     "experiments": {
-      "hostUri": "localhost",
       "reactCompiler": true
     },
     "extra": {
