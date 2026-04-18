@@ -40,5 +40,5 @@ yarn-error.*
 /ios
 /android
 bundletool.jar
-streak-tracker.apk
+*.apk
 *.apks
