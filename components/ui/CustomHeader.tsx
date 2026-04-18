@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from "react-native";
 import { ArrowUpDown, Plus, Filter } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface HeaderAction {
   icon: "sort" | "plus" | "filter";
@@ -19,8 +20,13 @@ const ICON_MAP = {
 };
 
 export function CustomHeader({ title, leftAction, rightAction }: CustomHeaderProps) {
+  const insets = useSafeAreaInsets();
+  
   return (
-    <View className="flex-row items-center justify-between px-4 pt-14 pb-3 bg-[#0F0F0F]">
+    <View 
+      className="flex-row items-center justify-between px-4 pb-3 bg-[#0F0F0F]"
+      style={{ paddingTop: insets.top > 0 ? insets.top + 8 : 56 }}
+    >
       {/* Left */}
       <View style={{ width: 40 }}>
         {leftAction && (

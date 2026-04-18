@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pencil } from "lucide-react-native";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useCounterStore } from "@/store/counterStore";
 import { LiveTimeDisplay } from "@/components/counters/LiveTimeDisplay";
@@ -21,12 +22,16 @@ export default function CounterDetailScreen() {
   const getResetsForCounter = useCounterStore((s) => s.getResetsForCounter);
   const updateCounter = useCounterStore((s) => s.updateCounter);
 
-  const counter = useMemo(() => counters.find((c) => c.id === id), [counters, id]);
+  const counter = useMemo(
+    () => counters.find((c) => c.id === id),
+    [counters, id],
+  );
 
   const [resets, setResets] = useState<Reset[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const resetSheetRef = useRef<BottomSheetModal>(null);
   const editSheetRef = useRef<BottomSheetModal>(null);
+  const insets = useSafeAreaInsets();
 
   const loadResets = useCallback(async () => {
     if (!id) return;
@@ -48,7 +53,7 @@ export default function CounterDetailScreen() {
     (period: Period) => {
       if (id) updateCounter(id, { period });
     },
-    [id, updateCounter]
+    [id, updateCounter],
   );
 
   const handleResetPress = useCallback(() => {
@@ -68,12 +73,16 @@ export default function CounterDetailScreen() {
     );
   }
 
-  const lastReset = resets.length > 0 ? resets.sort((a, b) => b.resetAt - a.resetAt)[0] : null;
+  const lastReset =
+    resets.length > 0 ? resets.sort((a, b) => b.resetAt - a.resetAt)[0] : null;
 
   return (
     <View className="flex-1 bg-[#0F0F0F]">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pt-14 pb-3">
+      <View
+        className="flex-row items-center justify-between px-4 pb-3"
+        style={{ paddingTop: insets.top > 0 ? insets.top + 8 : 56 }}
+      >
         <Pressable
           onPress={() => router.back()}
           className="flex-row items-center"
@@ -82,10 +91,7 @@ export default function CounterDetailScreen() {
           <ChevronLeft size={22} color="#E63946" />
           <Text className="text-[#E63946] text-base ml-1">Counters</Text>
         </Pressable>
-        <Pressable
-          onPress={() => editSheetRef.current?.present()}
-          hitSlop={8}
-        >
+        <Pressable onPress={() => editSheetRef.current?.present()} hitSlop={8}>
           <Pencil size={20} color="#9CA3AF" />
         </Pressable>
       </View>
@@ -98,11 +104,17 @@ export default function CounterDetailScreen() {
         {/* Title with accent border */}
         <View className="flex-row items-start mb-1 mt-2">
           <View
-            style={{ backgroundColor: counter.color, width: 4, borderRadius: 2 }}
+            style={{
+              backgroundColor: counter.color,
+              width: 4,
+              borderRadius: 2,
+            }}
             className="self-stretch mr-3"
           />
           <View className="flex-1">
-            <Text className="text-white text-2xl font-bold">{counter.title}</Text>
+            <Text className="text-white text-2xl font-bold">
+              {counter.title}
+            </Text>
             <Text className="text-gray-500 text-sm mt-1">
               Started on {formatStartedOn(counter.createdAt)}
             </Text>

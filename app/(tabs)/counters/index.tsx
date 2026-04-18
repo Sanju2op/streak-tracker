@@ -48,6 +48,8 @@ export default function CountersScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          numColumns={2}
+          columnWrapperStyle={{ gap: 12 }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}

@@ -5,9 +5,10 @@
 
 ## App Summary
 
-A free, personal habit/streak tracker for Android (Google Play). Users create named streaks with a start date/time, watch them count up in real-time, reset them with a note and date, and review history via a calendar and stats card. Key differentiator: Android home screen and lock screen widgets.
+A free, personal habit/streak tracker for Android, iOS, and Web. Users create named streaks with a start date/time, watch them count up in real-time, reset them with a note and date, and review history via a calendar and stats card. Key differentiator: Android home screen and lock screen widgets.
 
-**Out of scope (v1):** iCloud/Google sync, social sharing, notifications/reminders, paid tiers, iOS.
+**Target platforms:** Android (primary), iOS, Web (secondary — testing + alternative usage)
+**Out of scope (v1):** Cloud sync, social sharing, notifications/reminders, paid tiers.
 
 ---
 
@@ -15,22 +16,107 @@ A free, personal habit/streak tracker for Android (Google Play). Users create na
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | **Expo SDK 52** + React Native 0.76 | Managed workflow, fast iteration, EAS Build for Play Store |
+| Framework | **Expo SDK 54** + React Native 0.81 | Managed workflow, fast iteration, EAS Build for stores |
 | Language | **TypeScript** (strict mode) | Catch bugs early, AI generates better typed code |
 | Router | **Expo Router v3** (file-based) | Well-known by AI, no manual navigator setup, deep linking free |
 | State | **Zustand v4** | Zero boilerplate, works well with persistence |
-| Database | **expo-sqlite** + **Drizzle ORM** | Relational data (counters + resets), type-safe queries, works offline |
+| Database (native) | **expo-sqlite** + **Drizzle ORM** | Relational data, type-safe queries, works offline |
+| Database (web) | **localStorage JSON adapter** | Same interface as native adapter — no WASM complexity |
 | Styling | **NativeWind v4** (Tailwind for RN) | Eliminates StyleSheet boilerplate, Tailwind classes AI knows perfectly |
 | Animations | **React Native Reanimated v3** | Required by bottom-sheet, smooth 60fps gestures |
 | Bottom Sheets | **@gorhom/bottom-sheet v4** | Half-screen modals for reset, color picker, filter |
 | Calendar | **react-native-calendars** | Mature, supports custom day rendering (colored lines) |
-| Date/Time Picker | **@react-native-community/datetimepicker** | Official, well-supported on Android |
+| Date/Time Picker | **Platform-conditional wrapper** (see below) | Native picker on iOS/Android, HTML input on web |
 | Icons | **lucide-react-native** | Clean, consistent, tree-shakeable |
-| Haptics | **expo-haptics** | Polish on button taps and resets |
-| Widgets | **react-native-android-widget** | Only viable RN library for Android home + lock screen widgets |
-| Build/Deploy | **EAS Build + EAS Submit** | Managed Play Store deployment |
+| Haptics | **expo-haptics** | Polish on button taps and resets (native only — no-op on web) |
+| Widgets | **react-native-android-widget** | Android home + lock screen widgets (Android only) |
+| Build/Deploy | **EAS Build + EAS Submit** | Managed Play Store + App Store deployment |
 
 > **Rule:** Do not swap any of these without updating this file first.
+
+---
+
+## Cross-Platform Data Storage — Adapter Pattern
+
+`expo-sqlite` does not run on web. Rather than hacking around crashes, use a **single adapter interface** that both platforms implement identically. Zustand store actions never need a platform check.
+
+### The interface — `/db/adapter.ts`
+```ts
+export interface DBAdapter {
+  getCounters(): Promise<Counter[]>
+  getCounter(id: string): Promise<Counter | null>
+  insertCounter(counter: Counter): Promise<void>
+  updateCounter(id: string, data: Partial<Counter>): Promise<void>
+  deleteCounter(id: string): Promise<void>
+  getResets(counterId: string): Promise<Reset[]>
+  insertReset(reset: Reset): Promise<void>
+}
+```
+
+### Platform routing — `/db/index.ts`
+```ts
+import { Platform } from 'react-native'
+import { sqliteAdapter } from './sqliteAdapter'    // native
+import { localStorageAdapter } from './webAdapter' // web
+
+export const db: DBAdapter = Platform.OS === 'web'
+  ? localStorageAdapter
+  : sqliteAdapter
+```
+
+### Native — `/db/sqliteAdapter.ts`
+- Uses `expo-sqlite` + Drizzle ORM (existing implementation)
+- Never call `openDatabaseSync` without a Platform guard
+
+### Web — `/db/webAdapter.ts`
+- Reads/writes a single JSON blob to `localStorage` under key `streak_tracker_data`
+- Shape: `{ counters: Counter[], resets: Reset[] }`
+- Parse on every read, stringify on every write
+- Always return Promises (even though localStorage is sync) to match the interface
+- Acceptable for web: personal use, small data, secondary platform
+
+### Key rule
+All Zustand store actions call `db.someMethod()`. Never import `sqliteAdapter` or `webAdapter` directly outside `/db/index.ts`.
+
+---
+
+## Date/Time Picker — Platform-Conditional Wrapper
+
+`@react-native-community/datetimepicker` is native-only and does not work on web.
+
+### Solution — `/components/ui/DateTimePicker.tsx`
+```ts
+interface DateTimePickerProps {
+  value: Date
+  mode: 'date' | 'time'
+  onChange: (date: Date) => void
+}
+
+// Web: render <input type="date" /> or <input type="time" />
+//   - Style to match app theme (no browser chrome showing through)
+//   - Parse the string value back to a Date in onChange
+// Native (iOS/Android): render @react-native-community/datetimepicker
+```
+
+**Always import `DateTimePicker` from `@/components/ui/DateTimePicker`** — never import the native library directly in feature components. The platform check lives in exactly one place.
+
+---
+
+## iOS — What's Needed
+
+Building for iOS with Expo is straightforward. Blockers are account-level, not code-level.
+
+| What | Cost | Required for |
+|---|---|---|
+| Apple Developer Account | $99/year | Real device + App Store submission |
+| iOS Simulator | Free (macOS only) | Local testing without a device |
+| EAS Build (iOS profile) | Free tier available | Building the `.ipa` |
+
+**Code changes for iOS are minimal** — Expo handles most differences. Verify:
+- `expo-haptics` — works on iOS (better than Android)
+- `@gorhom/bottom-sheet` — works on iOS
+- `react-native-android-widget` — Android only; all widget code must be inside `Platform.OS === 'android'` guards
+- Safe area — test on notch/Dynamic Island devices
 
 ---
 
@@ -43,7 +129,7 @@ A free, personal habit/streak tracker for Android (Google Play). Users create na
     _layout.tsx                 # Tab navigator: Counters | Calendar | Settings
     counters/
       index.tsx                 # Counter list page
-      [id].tsx                  # Counter detail page (navigated to on card tap)
+      [id].tsx                  # Counter detail page
     calendar/
       index.tsx                 # Calendar page
     settings/
@@ -51,103 +137,93 @@ A free, personal habit/streak tracker for Android (Google Play). Users create na
 
 /components
   /counters
-    CounterCard.tsx             # Card on counters list (color accent, live time display, selected period)
-    CreateCounterSheet.tsx      # Full-screen sheet: create + edit mode (takes optional counterId)
-    ResetCounterSheet.tsx       # Half-screen bottom sheet: date/time + note
-    ColorPickerSheet.tsx        # Half-screen bottom sheet: 5 palette pages × 15 colors
-    TimeTabSelector.tsx         # Merged tab buttons: Hours | Days | Weeks | Months | Years
-    LiveTimeDisplay.tsx         # Ticking display driven by setInterval (seconds, minutes, hours, etc.)
-    StatsCard.tsx               # 2×2 grid: Resets, Days since start, Longest, Average
+    CounterCard.tsx
+    CreateCounterSheet.tsx
+    ResetCounterSheet.tsx
+    ColorPickerSheet.tsx
+    TimeTabSelector.tsx
+    LiveTimeDisplay.tsx
+    StatsCard.tsx
   /calendar
-    FilterSheet.tsx             # Full-screen sheet: checkbox list of counters to show
-    CalendarStreak.tsx          # Custom day component showing colored streak lines
+    FilterSheet.tsx
+    CalendarStreak.tsx
   /ui
-    CustomHeader.tsx            # Top bar: sort toggle | page title | action button (contextual)
-    EmptyState.tsx              # Empty counters illustration + "Create your first streak" CTA
+    CustomHeader.tsx
+    EmptyState.tsx
+    DateTimePicker.tsx          # ⚠️ Platform wrapper — ALWAYS use this, never the native lib directly
 
 /db
-  schema.ts                    # Drizzle schema definitions (see Data Models below)
-  index.ts                     # expo-sqlite connection + drizzle instance export
-  migrations/                  # Auto-generated by drizzle-kit
+  adapter.ts                   # DBAdapter interface
+  index.ts                     # Platform routing: exports correct adapter
+  sqliteAdapter.ts             # Native: expo-sqlite + Drizzle
+  webAdapter.ts                # Web: localStorage JSON
+  schema.ts                    # Drizzle schema (native only)
+  migrations/                  # drizzle-kit output (native only)
 
 /store
-  counterStore.ts              # Zustand: counters[], selectedPeriods{}, sort order, actions
-  calendarStore.ts             # Zustand: activeFilter (which counter IDs to show in calendar)
+  counterStore.ts
+  calendarStore.ts
 
 /constants
-  colors.ts                    # 75 accent colors: 5 palettes × 15 colors each (hex values + labels)
-  palettes.ts                  # Palette metadata: { id, label, colors[] }
+  colors.ts                    # 75 accent colors across 5 palettes
+  palettes.ts
 
 /lib
-  timeUtils.ts                 # All time math: getElapsed(startTs, endTs) → { seconds, minutes, hours, days, weeks, months, years }
-  statsUtils.ts                # computeStats(counter, resets[]) → { resetCount, daysSinceStart, longestStreak, averageStreak }
-  formatUtils.ts               # Format elapsed object → display string per period tab
+  timeUtils.ts
+  statsUtils.ts
+  formatUtils.ts
+  calendarUtils.ts
 
 /widgets
-  CounterWidget.tsx            # Android widget UI component (react-native-android-widget)
-  widgetTaskHandler.ts         # Widget background update logic
+  CounterWidget.tsx            # Android only
+  widgetTaskHandler.ts         # Android only
 
 /types
-  index.ts                     # Shared TypeScript interfaces (Counter, Reset, Palette, Period, Stats)
+  index.ts
 ```
 
 ---
 
-## Data Models (Drizzle Schema)
+## Data Models
 
-### `counters` table
+### `counters`
 ```ts
 {
-  id:         text (UUID, primary key)
-  title:      text (NOT NULL)               // e.g. "No Junk Food"
-  color:      text (NOT NULL)               // hex string e.g. "#E63946"
-  startedAt:  integer (NOT NULL)            // Unix timestamp ms — the streak start OR last reset start
-  period:     text (NOT NULL, default 'days') // 'hours'|'days'|'weeks'|'months'|'years' — selected display tab
-  createdAt:  integer (NOT NULL)
-  updatedAt:  integer (NOT NULL)
+  id:         text (UUID, PK)
+  title:      text NOT NULL
+  color:      text NOT NULL         // hex e.g. "#E63946"
+  startedAt:  integer NOT NULL      // Unix ms — streak start or last reset date
+  period:     text NOT NULL         // 'hours'|'days'|'weeks'|'months'|'years'
+  createdAt:  integer NOT NULL
+  updatedAt:  integer NOT NULL
 }
 ```
 
-### `resets` table
+### `resets`
 ```ts
 {
-  id:                 text (UUID, primary key)
-  counterId:          text (FK → counters.id, CASCADE DELETE)
-  resetAt:            integer (NOT NULL)    // When they reset (Unix ms) — also becomes the new startedAt
-  note:               text (nullable)
-  previousStartedAt:  integer (NOT NULL)   // snapshot of counter.startedAt before reset (for stats)
-  createdAt:          integer (NOT NULL)
+  id:                 text (UUID, PK)
+  counterId:          text (FK → counters.id CASCADE DELETE)
+  resetAt:            integer NOT NULL
+  note:               text nullable
+  previousStartedAt:  integer NOT NULL   // snapshot before reset — needed for stats
+  createdAt:          integer NOT NULL
 }
 ```
 
-> **How reset works:** On reset, insert a row into `resets` (capturing the old `startedAt` as `previousStartedAt`), then update `counters.startedAt` to the new reset date.
+> **How reset works:** Insert row in `resets` (capturing old `startedAt` as `previousStartedAt`), then update `counters.startedAt` to the new reset date.
 
-### Stats are always computed — never stored:
+### Stats — always computed, never stored
 ```ts
-// statsUtils.ts
-computeStats(counter, resets) → {
-  resetCount:     number           // resets.length
-  daysSinceStart: number           // (now - counter.startedAt) in days
-  longestStreak:  number (days)    // max streak across all reset intervals
-  averageStreak:  number (days)    // mean streak length across all intervals
-}
+computeStats(counter, resets) → { resetCount, daysSinceStart, longestStreak, averageStreak }
 ```
 
 ---
 
 ## Color System
 
-75 accent colors in 5 palettes, 15 per palette:
-
-| Palette | Label |
-|---|---|
-| 1 | Originals |
-| 2 | Earth Tones |
-| 3 | Pastels |
-| 4 | Landscapes |
-| 5 | Metals |
-
-Stored in `/constants/colors.ts` as an array of `{ id, hex, label }`. On new counter creation, pick a random color from all 75. The same color is applied to: card background accent, calendar streak line, detail page accent, widget icon background.
+75 accent colors — 5 palettes × 15 colors: Originals, Earth Tones, Pastels, Landscapes, Metals.
+Random color picked on new counter creation. Same color applied to: card bg, calendar line, detail accent, widget bg.
 
 ---
 
@@ -155,62 +231,74 @@ Stored in `/constants/colors.ts` as an array of `{ id, hex, label }`. On new cou
 
 ```
 (tabs)
-├── /counters          CounterList
-│   └── /counters/[id] CounterDetail
-├── /calendar          Calendar
-└── /settings          Settings
+├── /counters → CounterList
+│   └── /counters/[id] → CounterDetail
+├── /calendar → Calendar
+└── /settings → Settings
 
-Sheets (not routes — rendered as modals on top of current screen):
-├── CreateCounterSheet   (triggered by + icon, or Edit button in detail)
-├── ResetCounterSheet    (triggered by Reset Counter button in detail)
-├── ColorPickerSheet     (triggered by color dot in CreateCounterSheet)
-└── FilterSheet          (triggered by filter icon in Calendar header)
+Sheets (BottomSheetModal — not routes):
+├── CreateCounterSheet   (+ icon or Edit)
+├── ResetCounterSheet    (Reset Counter button)
+├── ColorPickerSheet     (color dot in CreateCounterSheet)
+└── FilterSheet          (filter icon in Calendar)
 ```
 
 ---
 
 ## Real-Time Ticking Logic
 
-- `LiveTimeDisplay` runs a `setInterval` every 1000ms using `useEffect`
-- Reads `counter.startedAt`, computes elapsed via `timeUtils.getElapsed(startedAt, Date.now())`
-- Always updates every second regardless of which period tab is selected
-- Unsubscribes on unmount
-- The CounterCard on the list only shows the primary value for the selected period (e.g. if period = 'weeks', show `X weeks`)
-- The detail page shows the full breakdown per the active tab
+- `LiveTimeDisplay` runs `setInterval(1000)` in `useEffect`, clears on unmount
+- Computes `getElapsed(counter.startedAt, Date.now())` every second
+- CounterCard: shows only primary value for `counter.period`
+- Detail page: shows full breakdown for the active tab
 
 ---
 
 ## Android Widgets
 
-- Library: `react-native-android-widget`
-- Widget types:
-  - **Small** (2×2): Single streak — big number + period label (e.g. "108 Days")
-  - **Medium** (4×2): Up to 3 streaks stacked
-- Display period per widget = whatever the counter's saved `period` is
-- Widget data: query DB directly in `widgetTaskHandler.ts` (no Zustand — widgets run in a separate process)
-- Update trigger: on app foreground + every 30 min via WorkManager
+- Library: `react-native-android-widget` — **all widget code gated with `Platform.OS === 'android'`**
+- Small (2×2): single streak, big number + period label
+- Medium (4×2): up to 3 streaks
+- Widget process queries `sqliteAdapter` directly (no Zustand)
+- Updates: on app foreground + every 30 min via WorkManager
+- **iOS widgets:** out of scope for v1 (requires WidgetKit Swift extension)
 
 ---
 
 ## Key Conventions
 
-1. **No StyleSheet.create** — use NativeWind classes exclusively. Exception: dynamic styles that depend on JS values (e.g. accent color) use inline `style={{ backgroundColor: counter.color }}`.
-2. **All time logic lives in `/lib/timeUtils.ts`** — no time math in components.
-3. **Bottom sheets use `@gorhom/bottom-sheet`'s `BottomSheetModal`** — always wrap the app root with `BottomSheetModalProvider` in `_layout.tsx`.
-4. **Zustand store is the single source of truth for UI state** — DB is source of truth for persisted data. On app load, hydrate Zustand from DB.
-5. **UUIDs generated with `crypto.randomUUID()`** — available in Expo SDK 52+.
-6. **Dates always stored as Unix milliseconds (integers)** in SQLite. All display formatting happens in `formatUtils.ts`.
-7. **Folder imports** — each folder has an `index.ts` that re-exports its components. Import as `@/components/counters` not deep paths.
-8. **No `any` types** — if you don't know the type, define it in `/types/index.ts`.
+1. **No StyleSheet.create** — NativeWind only. Exception: dynamic JS values (accent color) use inline style.
+2. **All time logic in `/lib/timeUtils.ts`** — never in components.
+3. **All date/time UI via `/components/ui/DateTimePicker.tsx`** — never import the native lib directly.
+4. **All DB access via `db` from `/db/index.ts`** — never import platform adapters directly elsewhere.
+5. **Bottom sheets via `BottomSheetModal`** — `BottomSheetModalProvider` must wrap root in `_layout.tsx`.
+6. **Zustand = UI state. DB = persistence.** Hydrate Zustand from DB on app load.
+7. **UUIDs via `crypto.randomUUID()`** — available in Expo SDK 54.
+8. **Dates as Unix milliseconds** in DB. All formatting in `formatUtils.ts`.
+9. **Barrel imports** — each folder has `index.ts`. Import `@/components/counters`, not deep paths.
+10. **No `any` types** — define in `/types/index.ts`.
+11. **Widget code always gated**: `if (Platform.OS === 'android') { ... }`
+12. **Haptics gated**: `if (Platform.OS !== 'web') { await Haptics.impactAsync(...) }`
 
 ---
 
-## Publishing Checklist (EAS)
+## Publishing Checklist
 
-- [ ] `app.json` — package name: `com.[yourname].streaktracker` (avoid any existing app names)
-- [ ] Privacy Policy URL required for Google Play (host a simple page)
-- [ ] `eas.json` — configure `production` build profile
-- [ ] Android permissions: only `RECEIVE_BOOT_COMPLETED` (widgets) — no camera, contacts, location
-- [ ] App icon + splash screen via `expo-splash-screen`
+### Android (Google Play)
+- [ ] `app.json` package: `com.[yourname].streaktracker`
+- [ ] Privacy Policy URL (GitHub Pages or Notion)
+- [ ] `eas.json` android production profile
+- [ ] Permissions: `RECEIVE_BOOT_COMPLETED` only
+- [ ] App icon + splash screen
 - [ ] `eas build --platform android --profile production`
+- [ ] Google Play Console ($25 one-time)
 - [ ] `eas submit --platform android`
+
+### iOS (App Store)
+- [ ] Apple Developer account ($99/year)
+- [ ] Bundle ID: `com.[yourname].streaktracker`
+- [ ] `eas.json` ios production profile
+- [ ] Test on Simulator first (free, macOS only)
+- [ ] `eas build --platform ios --profile production`
+- [ ] `eas submit --platform ios`
+- [ ] App Store Connect listing (iPhone + iPad screenshots)

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { counters as countersTable, resets as resetsTable } from "@/db/schema";
 import { getRandomColor } from "@/constants/colors";
 import type { Counter, Reset, Period, SortOrder } from "@/types";
+import { generateUUID } from "@/lib/uuid";
 
 interface CounterStore {
   counters: Counter[];
@@ -12,10 +13,21 @@ interface CounterStore {
 
   // Actions
   loadCounters: () => Promise<void>;
-  addCounter: (title: string, color: string, startedAt: number) => Promise<Counter>;
-  updateCounter: (id: string, updates: Partial<Pick<Counter, "title" | "color" | "period">>) => Promise<void>;
+  addCounter: (
+    title: string,
+    color: string,
+    startedAt: number,
+  ) => Promise<Counter>;
+  updateCounter: (
+    id: string,
+    updates: Partial<Pick<Counter, "title" | "color" | "period" | "startedAt">>,
+  ) => Promise<void>;
   deleteCounter: (id: string) => Promise<void>;
-  resetCounter: (id: string, resetAt: number, note: string | null) => Promise<void>;
+  resetCounter: (
+    id: string,
+    resetAt: number,
+    note: string | null,
+  ) => Promise<void>;
   toggleSort: () => void;
   getResetsForCounter: (counterId: string) => Promise<Reset[]>;
 }
@@ -27,7 +39,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
 
   loadCounters: async () => {
     const rows = await db.select().from(countersTable);
-    const mapped: Counter[] = rows.map((row) => ({
+    const mapped: Counter[] = rows.map((row: any) => ({
       id: row.id,
       title: row.title,
       color: row.color,
@@ -41,7 +53,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
 
   addCounter: async (title, color, startedAt) => {
     const now = Date.now();
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const newCounter: Counter = {
       id,
       title,
@@ -72,6 +84,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.color !== undefined) updateData.color = updates.color;
     if (updates.period !== undefined) updateData.period = updates.period;
+    if (updates.startedAt !== undefined) updateData.startedAt = updates.startedAt;
 
     await db
       .update(countersTable)
@@ -80,7 +93,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
 
     set((state) => ({
       counters: state.counters.map((c) =>
-        c.id === id ? { ...c, ...updates, updatedAt: now } : c
+        c.id === id ? { ...c, ...updates, updatedAt: now } : c,
       ),
     }));
   },
@@ -96,7 +109,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
     const counter = get().counters.find((c) => c.id === id);
     if (!counter) return;
 
-    const resetId = crypto.randomUUID();
+    const resetId = generateUUID();
     const now = Date.now();
 
     // Insert reset record capturing the old startedAt
@@ -117,7 +130,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
 
     set((state) => ({
       counters: state.counters.map((c) =>
-        c.id === id ? { ...c, startedAt: resetAt, updatedAt: now } : c
+        c.id === id ? { ...c, startedAt: resetAt, updatedAt: now } : c,
       ),
     }));
   },
@@ -133,7 +146,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
       .select()
       .from(resetsTable)
       .where(eq(resetsTable.counterId, counterId));
-    return rows.map((row) => ({
+    return rows.map((row: any) => ({
       id: row.id,
       counterId: row.counterId,
       resetAt: row.resetAt,

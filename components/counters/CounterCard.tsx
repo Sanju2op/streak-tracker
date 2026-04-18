@@ -47,7 +47,7 @@ export const CounterCard = memo(function CounterCard({ counter }: CounterCardPro
     <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
-      className="rounded-2xl overflow-hidden active:scale-[0.98]"
+      className="rounded-2xl overflow-hidden active:scale-[0.98] flex-1"
       style={{ transform: [{ scale: 1 }] }}
     >
       <View
