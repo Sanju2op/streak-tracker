@@ -5,8 +5,6 @@ import {
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
-import { DateTimePicker } from "@/components/ui/DateTimePicker";
-import { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useCounterStore } from "@/store/counterStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -20,13 +18,10 @@ export const ResetCounterSheet = forwardRef<
   ResetCounterSheetProps
 >(function ResetCounterSheet({ counterId, onDone }, ref) {
   const insets = useSafeAreaInsets();
-  const snapPoints = useMemo(() => ["60%"], []);
+  const snapPoints = useMemo(() => ["45%"], []);
   const resetCounter = useCounterStore((s) => s.resetCounter);
 
-  const [resetDate, setResetDate] = useState(new Date());
   const [note, setNote] = useState("");
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -41,52 +36,28 @@ export const ResetCounterSheet = forwardRef<
   );
 
   const handleDone = useCallback(async () => {
-    await resetCounter(counterId, resetDate.getTime(), note.trim() || null);
+    // Always reset from the current instant so the streak restarts at 0s.
+    await resetCounter(counterId, Date.now(), note.trim() || null);
     setNote("");
-    setResetDate(new Date());
     (ref as React.RefObject<BottomSheetModal>)?.current?.dismiss();
     onDone?.();
-  }, [counterId, resetDate, note, resetCounter, ref, onDone]);
-
-  const handleDateChange = useCallback(
-    (_event: DateTimePickerEvent, date?: Date) => {
-      setShowDatePicker(false);
-      if (date) {
-        const updated = new Date(resetDate);
-        updated.setFullYear(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate(),
-        );
-        setResetDate(updated);
-      }
-    },
-    [resetDate],
-  );
-
-  const handleTimeChange = useCallback(
-    (_event: DateTimePickerEvent, time?: Date) => {
-      setShowTimePicker(false);
-      if (time) {
-        const updated = new Date(resetDate);
-        updated.setHours(time.getHours(), time.getMinutes());
-        setResetDate(updated);
-      }
-    },
-    [resetDate],
-  );
+  }, [counterId, note, resetCounter, ref, onDone]);
 
   return (
     <BottomSheetModal
       ref={ref}
       snapPoints={snapPoints}
+      topInset={insets.top}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#1A1A2E" }}
       handleIndicatorStyle={{ backgroundColor: "#4B5563" }}
     >
       <BottomSheetScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingBottom: insets.bottom + 20,
+        }}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
@@ -104,55 +75,14 @@ export const ResetCounterSheet = forwardRef<
           </Pressable>
         </View>
 
-        {/* Date */}
-        <Pressable
-          onPress={() => setShowDatePicker(true)}
-          className="bg-[#0F0F0F] p-4 rounded-xl mb-3"
-        >
+        <View className="bg-[#0F0F0F] p-4 rounded-xl mb-3">
           <Text className="text-gray-500 text-xs font-semibold mb-1 tracking-wider uppercase">
-            Reset on
+            Reset behavior
           </Text>
           <Text className="text-white text-base">
-            {resetDate.toLocaleDateString("en-US", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            Counter will reset from current time.
           </Text>
-        </Pressable>
-        {showDatePicker ? (
-          <DateTimePicker
-            value={resetDate}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-            maximumDate={new Date()}
-          />
-        ) : null}
-
-        {/* Time */}
-        <Pressable
-          onPress={() => setShowTimePicker(true)}
-          className="bg-[#0F0F0F] p-4 rounded-xl mb-3"
-        >
-          <Text className="text-gray-500 text-xs font-semibold mb-1 tracking-wider uppercase">
-            Time
-          </Text>
-          <Text className="text-white text-base">
-            {resetDate.toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        </Pressable>
-        {showTimePicker ? (
-          <DateTimePicker
-            value={resetDate}
-            mode="time"
-            display="default"
-            onChange={handleTimeChange}
-          />
-        ) : null}
+        </View>
 
         {/* Note */}
         <View className="bg-[#0F0F0F] p-4 rounded-xl">

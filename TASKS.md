@@ -250,13 +250,32 @@
   - Editing a streak's time does not persist; only title and color were being updated.
   - Fix: Update `updateCounter` in store and sheet to include `startedAt`.
 
+- ✅ `B13` **Form Reset on Color Pick**
+  - Switching to color picker or dismissing it resets chosen time and title in Create/Edit sheet.
+  - Root cause: `handleSheetChanges` in `CreateCounterSheet` resets state too aggressively.
+
+- ✅ `B14` **Sheet Persistence in Background**
+  - `CreateCounterSheet` should stay open and visible in background when color picker is active.
+
+- ✅ `B15` **Sheet Safe Area (Top) Overflow**
+  - Sliding sheets all the way up can overlap unsafe top areas (status bar/notch).
+  - Fix: Add top safe area padding or cap maximum snap point.
+
+- ✅ `B16` **Stats + Reset Consistency**
+  - `daysSinceStart` now uses `counter.startedAt` (the entered/active streak start), not `createdAt`.
+  - Counter detail "Started on" now reflects `startedAt`.
+  - Reset flow now always restarts the active timer from current time (`Date.now()`), so streak time resets to 0s.
+  - Reset query ordering stabilized (`resetAt` desc) for consistent latest reset + count rendering.
+
 ---
 
 ## Recommended Fix Order (Current Priority)
 
-1. `B3` — Full web audit (after adapter is in place)
-2. `2.5` — Verify navigation/header
-3. Resume Phase 4 (Calendar)
+1. `B13` + `B14` — Fix form reset and sheet layering
+2. `B15` — Safe area top overflow
+3. `B3` — Full web audit (after adapter is in place)
+4. `2.5` — Verify navigation/header
+5. Resume Phase 4 (Calendar)
 
 ---
 

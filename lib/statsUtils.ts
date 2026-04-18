@@ -5,7 +5,7 @@ import { getElapsedDays } from "./timeUtils";
  * Computes stats for a counter given its reset history.
  *
  * - resetCount: total number of resets
- * - daysSinceStart: days since the counter was first created (using createdAt)
+ * - daysSinceStart: days since the active streak start (`counter.startedAt`)
  * - longestStreak: the longest streak duration in days across all intervals
  * - averageStreak: mean streak duration in days
  *
@@ -14,7 +14,7 @@ import { getElapsedDays } from "./timeUtils";
 export function computeStats(counter: Counter, resetList: Reset[]): Stats {
   const now = Date.now();
   const resetCount = resetList.length;
-  const daysSinceStart = Math.floor(getElapsedDays(counter.createdAt, now));
+  const daysSinceStart = Math.floor(getElapsedDays(counter.startedAt, now));
 
   if (resetCount === 0) {
     const currentStreak = Math.floor(getElapsedDays(counter.startedAt, now));
@@ -45,7 +45,7 @@ export function computeStats(counter: Counter, resetList: Reset[]): Stats {
 
   const longestStreak = Math.floor(Math.max(...intervals));
   const averageStreak = Math.round(
-    intervals.reduce((sum, d) => sum + d, 0) / intervals.length
+    intervals.reduce((sum, d) => sum + d, 0) / intervals.length,
   );
 
   return { resetCount, daysSinceStart, longestStreak, averageStreak };

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { counters as countersTable, resets as resetsTable } from "@/db/schema";
 import { getRandomColor } from "@/constants/colors";
@@ -111,12 +111,13 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
 
     const resetId = generateUUID();
     const now = Date.now();
+    const effectiveResetAt = Math.min(now, resetAt);
 
     // Insert reset record capturing the old startedAt
     await db.insert(resetsTable).values({
       id: resetId,
       counterId: id,
-      resetAt,
+      resetAt: effectiveResetAt,
       note,
       previousStartedAt: counter.startedAt,
       createdAt: now,
@@ -125,12 +126,12 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
     // Update counter's startedAt to the reset date
     await db
       .update(countersTable)
-      .set({ startedAt: resetAt, updatedAt: now })
+      .set({ startedAt: effectiveResetAt, updatedAt: now })
       .where(eq(countersTable.id, id));
 
     set((state) => ({
       counters: state.counters.map((c) =>
-        c.id === id ? { ...c, startedAt: resetAt, updatedAt: now } : c,
+        c.id === id ? { ...c, startedAt: effectiveResetAt, updatedAt: now } : c,
       ),
     }));
   },
@@ -145,7 +146,8 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
     const rows = await db
       .select()
       .from(resetsTable)
-      .where(eq(resetsTable.counterId, counterId));
+      .where(eq(resetsTable.counterId, counterId))
+      .orderBy(desc(resetsTable.resetAt));
     return rows.map((row: any) => ({
       id: row.id,
       counterId: row.counterId,

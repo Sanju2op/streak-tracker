@@ -6,19 +6,20 @@ import {
   useRef,
   useState,
 } from "react";
-import { View, Text, TextInput, Pressable, Platform } from "react-native";
+import { View, Text, TextInput, Pressable } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useCounterStore } from "@/store/counterStore";
 import { getRandomColor } from "@/constants/colors";
 import { ColorPickerSheet } from "./ColorPickerSheet";
 import { LiveTimeDisplay } from "./LiveTimeDisplay";
-import type { Counter, ColorSwatch, Period } from "@/types";
+import type { ColorSwatch } from "@/types";
 
 interface CreateCounterSheetProps {
   counterId?: string; // if provided, edit mode
@@ -28,6 +29,7 @@ export const CreateCounterSheet = forwardRef<
   BottomSheetModal,
   CreateCounterSheetProps
 >(function CreateCounterSheet({ counterId }, ref) {
+  const insets = useSafeAreaInsets();
   const snapPoints = useMemo(() => ["100%"], []);
   const counters = useCounterStore((s) => s.counters);
   const addCounter = useCounterStore((s) => s.addCounter);
@@ -46,26 +48,36 @@ export const CreateCounterSheet = forwardRef<
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const colorPickerRef = useRef<BottomSheetModal>(null);
+  const previousSheetIndexRef = useRef(-1);
 
-  // Reset form when sheet opens
+  const initializeForm = useCallback(() => {
+    if (existingCounter) {
+      setTitle(existingCounter.title);
+      setColor(existingCounter.color);
+      setStartDate(new Date(existingCounter.startedAt));
+      return;
+    }
+    setTitle("");
+    setColor(getRandomColor().hex);
+    setStartDate(new Date());
+  }, [existingCounter]);
+
+  // Reset form only when opening from fully closed state.
   const handleSheetChanges = useCallback(
     (index: number) => {
-      if (index === 0 || index === -1) {
-        // -1 is closed, 0 is opened. We reset on both or just open.
-        if (existingCounter) {
-          setTitle(existingCounter.title);
-          setColor(existingCounter.color);
-          setStartDate(new Date(existingCounter.startedAt));
-        } else {
-          setTitle("");
-          setColor(getRandomColor().hex);
-          setStartDate(new Date());
-          setShowDatePicker(false);
-          setShowTimePicker(false);
-        }
+      const wasClosed = previousSheetIndexRef.current === -1;
+      if (index >= 0 && wasClosed) {
+        initializeForm();
       }
+
+      if (index === -1) {
+        setShowDatePicker(false);
+        setShowTimePicker(false);
+      }
+
+      previousSheetIndexRef.current = index;
     },
-    [existingCounter],
+    [initializeForm],
   );
 
   useEffect(() => {
@@ -154,6 +166,7 @@ export const CreateCounterSheet = forwardRef<
       <BottomSheetModal
         ref={ref}
         snapPoints={snapPoints}
+        topInset={insets.top}
         backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: "#0F0F0F" }}
         handleIndicatorStyle={{ backgroundColor: "#4B5563" }}
@@ -163,7 +176,11 @@ export const CreateCounterSheet = forwardRef<
       >
         <BottomSheetScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: insets.bottom + 24,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}

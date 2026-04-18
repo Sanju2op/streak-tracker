@@ -1,4 +1,5 @@
 # ARCHITECTURE.md
+
 > Single source of truth for all technical decisions. Do not debate these in sessions — implement them.
 
 ---
@@ -14,23 +15,23 @@ A free, personal habit/streak tracker for Android, iOS, and Web. Users create na
 
 ## Tech Stack — Locked In
 
-| Layer | Choice | Why |
-|---|---|---|
-| Framework | **Expo SDK 54** + React Native 0.81 | Managed workflow, fast iteration, EAS Build for stores |
-| Language | **TypeScript** (strict mode) | Catch bugs early, AI generates better typed code |
-| Router | **Expo Router v3** (file-based) | Well-known by AI, no manual navigator setup, deep linking free |
-| State | **Zustand v4** | Zero boilerplate, works well with persistence |
-| Database (native) | **expo-sqlite** + **Drizzle ORM** | Relational data, type-safe queries, works offline |
-| Database (web) | **localStorage JSON adapter** | Same interface as native adapter — no WASM complexity |
-| Styling | **NativeWind v4** (Tailwind for RN) | Eliminates StyleSheet boilerplate, Tailwind classes AI knows perfectly |
-| Animations | **React Native Reanimated v3** | Required by bottom-sheet, smooth 60fps gestures |
-| Bottom Sheets | **@gorhom/bottom-sheet v4** | Half-screen modals for reset, color picker, filter |
-| Calendar | **react-native-calendars** | Mature, supports custom day rendering (colored lines) |
-| Date/Time Picker | **Platform-conditional wrapper** (see below) | Native picker on iOS/Android, HTML input on web |
-| Icons | **lucide-react-native** | Clean, consistent, tree-shakeable |
-| Haptics | **expo-haptics** | Polish on button taps and resets (native only — no-op on web) |
-| Widgets | **react-native-android-widget** | Android home + lock screen widgets (Android only) |
-| Build/Deploy | **EAS Build + EAS Submit** | Managed Play Store + App Store deployment |
+| Layer             | Choice                                       | Why                                                                    |
+| ----------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| Framework         | **Expo SDK 54** + React Native 0.81          | Managed workflow, fast iteration, EAS Build for stores                 |
+| Language          | **TypeScript** (strict mode)                 | Catch bugs early, AI generates better typed code                       |
+| Router            | **Expo Router v3** (file-based)              | Well-known by AI, no manual navigator setup, deep linking free         |
+| State             | **Zustand v4**                               | Zero boilerplate, works well with persistence                          |
+| Database (native) | **expo-sqlite** + **Drizzle ORM**            | Relational data, type-safe queries, works offline                      |
+| Database (web)    | **localStorage JSON adapter**                | Same interface as native adapter — no WASM complexity                  |
+| Styling           | **NativeWind v4** (Tailwind for RN)          | Eliminates StyleSheet boilerplate, Tailwind classes AI knows perfectly |
+| Animations        | **React Native Reanimated v3**               | Required by bottom-sheet, smooth 60fps gestures                        |
+| Bottom Sheets     | **@gorhom/bottom-sheet v4**                  | Half-screen modals for reset, color picker, filter                     |
+| Calendar          | **react-native-calendars**                   | Mature, supports custom day rendering (colored lines)                  |
+| Date/Time Picker  | **Platform-conditional wrapper** (see below) | Native picker on iOS/Android, HTML input on web                        |
+| Icons             | **lucide-react-native**                      | Clean, consistent, tree-shakeable                                      |
+| Haptics           | **expo-haptics**                             | Polish on button taps and resets (native only — no-op on web)          |
+| Widgets           | **react-native-android-widget**              | Android home + lock screen widgets (Android only)                      |
+| Build/Deploy      | **EAS Build + EAS Submit**                   | Managed Play Store + App Store deployment                              |
 
 > **Rule:** Do not swap any of these without updating this file first.
 
@@ -41,34 +42,37 @@ A free, personal habit/streak tracker for Android, iOS, and Web. Users create na
 `expo-sqlite` does not run on web. Rather than hacking around crashes, use a **single adapter interface** that both platforms implement identically. Zustand store actions never need a platform check.
 
 ### The interface — `/db/adapter.ts`
+
 ```ts
 export interface DBAdapter {
-  getCounters(): Promise<Counter[]>
-  getCounter(id: string): Promise<Counter | null>
-  insertCounter(counter: Counter): Promise<void>
-  updateCounter(id: string, data: Partial<Counter>): Promise<void>
-  deleteCounter(id: string): Promise<void>
-  getResets(counterId: string): Promise<Reset[]>
-  insertReset(reset: Reset): Promise<void>
+  getCounters(): Promise<Counter[]>;
+  getCounter(id: string): Promise<Counter | null>;
+  insertCounter(counter: Counter): Promise<void>;
+  updateCounter(id: string, data: Partial<Counter>): Promise<void>;
+  deleteCounter(id: string): Promise<void>;
+  getResets(counterId: string): Promise<Reset[]>;
+  insertReset(reset: Reset): Promise<void>;
 }
 ```
 
 ### Platform routing — `/db/index.ts`
-```ts
-import { Platform } from 'react-native'
-import { sqliteAdapter } from './sqliteAdapter'    // native
-import { localStorageAdapter } from './webAdapter' // web
 
-export const db: DBAdapter = Platform.OS === 'web'
-  ? localStorageAdapter
-  : sqliteAdapter
+```ts
+import { Platform } from "react-native";
+import { sqliteAdapter } from "./sqliteAdapter"; // native
+import { localStorageAdapter } from "./webAdapter"; // web
+
+export const db: DBAdapter =
+  Platform.OS === "web" ? localStorageAdapter : sqliteAdapter;
 ```
 
 ### Native — `/db/sqliteAdapter.ts`
+
 - Uses `expo-sqlite` + Drizzle ORM (existing implementation)
 - Never call `openDatabaseSync` without a Platform guard
 
 ### Web — `/db/webAdapter.ts`
+
 - Reads/writes a single JSON blob to `localStorage` under key `streak_tracker_data`
 - Shape: `{ counters: Counter[], resets: Reset[] }`
 - Parse on every read, stringify on every write
@@ -76,6 +80,7 @@ export const db: DBAdapter = Platform.OS === 'web'
 - Acceptable for web: personal use, small data, secondary platform
 
 ### Key rule
+
 All Zustand store actions call `db.someMethod()`. Never import `sqliteAdapter` or `webAdapter` directly outside `/db/index.ts`.
 
 ---
@@ -85,11 +90,12 @@ All Zustand store actions call `db.someMethod()`. Never import `sqliteAdapter` o
 `@react-native-community/datetimepicker` is native-only and does not work on web.
 
 ### Solution — `/components/ui/DateTimePicker.tsx`
+
 ```ts
 interface DateTimePickerProps {
-  value: Date
-  mode: 'date' | 'time'
-  onChange: (date: Date) => void
+  value: Date;
+  mode: "date" | "time";
+  onChange: (date: Date) => void;
 }
 
 // Web: render <input type="date" /> or <input type="time" />
@@ -106,13 +112,14 @@ interface DateTimePickerProps {
 
 Building for iOS with Expo is straightforward. Blockers are account-level, not code-level.
 
-| What | Cost | Required for |
-|---|---|---|
-| Apple Developer Account | $99/year | Real device + App Store submission |
-| iOS Simulator | Free (macOS only) | Local testing without a device |
-| EAS Build (iOS profile) | Free tier available | Building the `.ipa` |
+| What                    | Cost                | Required for                       |
+| ----------------------- | ------------------- | ---------------------------------- |
+| Apple Developer Account | $99/year            | Real device + App Store submission |
+| iOS Simulator           | Free (macOS only)   | Local testing without a device     |
+| EAS Build (iOS profile) | Free tier available | Building the `.ipa`                |
 
 **Code changes for iOS are minimal** — Expo handles most differences. Verify:
+
 - `expo-haptics` — works on iOS (better than Android)
 - `@gorhom/bottom-sheet` — works on iOS
 - `react-native-android-widget` — Android only; all widget code must be inside `Platform.OS === 'android'` guards
@@ -187,6 +194,7 @@ Building for iOS with Expo is straightforward. Blockers are account-level, not c
 ## Data Models
 
 ### `counters`
+
 ```ts
 {
   id:         text (UUID, PK)
@@ -200,22 +208,25 @@ Building for iOS with Expo is straightforward. Blockers are account-level, not c
 ```
 
 ### `resets`
+
 ```ts
 {
   id:                 text (UUID, PK)
   counterId:          text (FK → counters.id CASCADE DELETE)
-  resetAt:            integer NOT NULL
+  resetAt:            integer NOT NULL      // effective reset timestamp (clamped to now)
   note:               text nullable
   previousStartedAt:  integer NOT NULL   // snapshot before reset — needed for stats
   createdAt:          integer NOT NULL
 }
 ```
 
-> **How reset works:** Insert row in `resets` (capturing old `startedAt` as `previousStartedAt`), then update `counters.startedAt` to the new reset date.
+> **How reset works:** Insert row in `resets` (capturing old `startedAt` as `previousStartedAt`), then update `counters.startedAt` to the effective reset timestamp. UI reset action passes `Date.now()` so the active streak restarts from 0s.
 
 ### Stats — always computed, never stored
+
 ```ts
 computeStats(counter, resets) → { resetCount, daysSinceStart, longestStreak, averageStreak }
+where `daysSinceStart` is computed from `counter.startedAt` (active streak start), not `counter.createdAt`.
 ```
 
 ---
@@ -273,7 +284,7 @@ Sheets (BottomSheetModal — not routes):
 4. **All DB access via `db` from `/db/index.ts`** — never import platform adapters directly elsewhere.
 5. **Bottom sheets via `BottomSheetModal`** — `BottomSheetModalProvider` must wrap root in `_layout.tsx`.
 6. **Zustand = UI state. DB = persistence.** Hydrate Zustand from DB on app load.
-7. **UUIDs via `crypto.randomUUID()`** — available in Expo SDK 54.
+7. **UUIDs via `generateUUID()` from `/lib/uuid.ts`** — avoid native-module coupling in Expo Go.
 8. **Dates as Unix milliseconds** in DB. All formatting in `formatUtils.ts`.
 9. **Barrel imports** — each folder has `index.ts`. Import `@/components/counters`, not deep paths.
 10. **No `any` types** — define in `/types/index.ts`.
@@ -285,6 +296,7 @@ Sheets (BottomSheetModal — not routes):
 ## Publishing Checklist
 
 ### Android (Google Play)
+
 - [ ] `app.json` package: `com.[yourname].streaktracker`
 - [ ] Privacy Policy URL (GitHub Pages or Notion)
 - [ ] `eas.json` android production profile
@@ -295,6 +307,7 @@ Sheets (BottomSheetModal — not routes):
 - [ ] `eas submit --platform android`
 
 ### iOS (App Store)
+
 - [ ] Apple Developer account ($99/year)
 - [ ] Bundle ID: `com.[yourname].streaktracker`
 - [ ] `eas.json` ios production profile

@@ -18,14 +18,14 @@ export const StatsCard = memo(function StatsCard({ stats }: StatsCardProps) {
         <View className="flex-1">
           <StatItem label="Resets" value={stats.resetCount.toString()} />
           <View className="h-4" />
-          <StatItem label="Longest Streak" value={`${stats.longestStreak}d`} />
+          <StatItem label="Longest Streak" value={`${stats.longestStreak} Days`} />
         </View>
 
         {/* Right column */}
         <View className="flex-1">
-          <StatItem label="Days Since Start" value={stats.daysSinceStart.toString()} />
+          <StatItem label="Since Start" value={`${stats.daysSinceStart.toString()} Days`} />
           <View className="h-4" />
-          <StatItem label="Average Streak" value={`${stats.averageStreak}d`} />
+          <StatItem label="Average Streak" value={`${stats.averageStreak} Days`} />
         </View>
       </View>
     </View>

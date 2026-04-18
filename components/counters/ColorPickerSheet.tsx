@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useMemo, useState, useRef } from "react";
+import { forwardRef, useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -62,6 +62,8 @@ export const ColorPickerSheet = forwardRef<
     <BottomSheetModal
       ref={ref}
       snapPoints={snapPoints}
+      stackBehavior="push"
+      topInset={insets.top}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#1A1A2E" }}
       handleIndicatorStyle={{ backgroundColor: "#4B5563" }}

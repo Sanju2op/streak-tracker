@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+bundletool.jar
+streak-tracker.apk
+*.apks

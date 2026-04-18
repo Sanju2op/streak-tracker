@@ -62,7 +62,7 @@ export default function CounterDetailScreen() {
   }, []);
 
   const handleResetDone = useCallback(() => {
-    loadResets();
+    void loadResets();
   }, [loadResets]);
 
   if (!counter) {
@@ -74,7 +74,7 @@ export default function CounterDetailScreen() {
   }
 
   const lastReset =
-    resets.length > 0 ? resets.sort((a, b) => b.resetAt - a.resetAt)[0] : null;
+    resets.length > 0 ? [...resets].sort((a, b) => b.resetAt - a.resetAt)[0] : null;
 
   return (
     <View className="flex-1 bg-[#0F0F0F]">
@@ -116,7 +116,7 @@ export default function CounterDetailScreen() {
               {counter.title}
             </Text>
             <Text className="text-gray-500 text-sm mt-1">
-              Started on {formatStartedOn(counter.createdAt)}
+              Started on {formatStartedOn(counter.startedAt)}
             </Text>
           </View>
         </View>
